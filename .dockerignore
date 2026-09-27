@@ -1,0 +1,12 @@
+.git
+.gitignore
+Dockerfile
+dockerfile
+.dockerignore
+docker-compose.yml
+README.md
+
+# Arquivos de sistema e IDEs
+.vscode/
+.idea/
+Thumbs.db
