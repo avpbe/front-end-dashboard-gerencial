@@ -62,7 +62,4 @@ Visão geral da comunicação e do fluxo de dados entre a Single Page Applicatio
   <img src="assets/arquitetura.png" alt="Fluxograma da Arquitetura do Sistema" width="800">
   <p><em>Fluxograma da arquitetura e fluxo de integração entre os componentes</em></p>
 </div>
-
-> **Nota**: Quando tiver a imagem do fluxograma pronta, salve-a no caminho indicado (por exemplo, criando uma pasta `assets/` e nomeando o arquivo como `arquitetura.png`) ou altere o atributo `src` para o caminho onde a imagem for salva.
-
 ---
