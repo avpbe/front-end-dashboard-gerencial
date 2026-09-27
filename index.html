@@ -97,7 +97,10 @@
         <div id="engineers-view" class="view">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <button class="btn btn-outline-secondary" onclick="showView('dashboard-view', 'Dashboard Principal')">← Voltar ao Dashboard</button>
-                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#colaboradorModal">Cadastrar Novo Engenheiro</button>
+                <div>
+                    <button id="btn-buscar-externos" class="btn btn-outline-primary me-2">Buscar Engenheiros</button>
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#colaboradorModal">Cadastrar Novo Engenheiro</button>
+                </div>
             </div>
 
             <section class="card custom-card">
@@ -191,6 +194,10 @@
                 <div class="modal-body">
                     <form id="colaborador-form">
                         <input type="hidden" id="colaboradorOriginalName">
+                        <input type="hidden" id="engineerPhoto">
+                        <div class="text-center mb-3">
+                            <img id="engineerPhotoPreview" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiIgZmlsbD0iIzZjNzU3ZCIgY2xhc3M9ImJpIGJpLXBlcnNvbi1jaXJjbGUiIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZD0iTTExIDZhMyAzIDAgMSAxLTYgMCAzIDMgMCAwIDEgNiAweiIvPjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgZD0iTTAgOGE4IDggMCAxIDEgMTYgMEE4IDggMCAwIDEgMCA4em04LTdhNyA3IDAgMCAwLTUuNDY4IDExLjM3QzMuMjQyIDExLjIyNiA0LjgwNSAxMCA4IDEwczQuNzU3IDEuMjI1IDUuNDY4IDIuMzdBNyA3IDAgMCAwIDggMXoiLz48L3N2Zz4=" alt="Foto do Engenheiro" class="rounded-circle border" width="96" height="96" style="width: 96px; height: 96px; object-fit: cover;">
+                        </div>
                         <input type="text" class="form-control mb-3" id="engineerName" name="engineerName" placeholder="Nome Completo" required>
                         <div class="row">
                             <div class="col-md-6 mb-3">
@@ -214,6 +221,66 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" form="colaborador-form" id="colaboradorSubmitButton" class="btn btn-success">Cadastrar Engenheiro</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE BUSCA DE ENGENHEIROS EXTERNOS (RANDOMUSER) -->
+    <div class="modal fade" id="externalEngineersModal" tabindex="-1" aria-labelledby="externalEngineersModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="externalEngineersModalLabel">Candidatos Disponíveis (RandomUser)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label for="externalNatSelect" class="form-label small text-muted mb-1">Nacionalidade</label>
+                            <select id="externalNatSelect" class="form-select form-select-sm">
+                                <option value="br" selected>Brasil (BR)</option>
+                                <option value="us">Estados Unidos (US)</option>
+                                <option value="gb">Reino Unido (GB)</option>
+                                <option value="fr">França (FR)</option>
+                                <option value="es">Espanha (ES)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="externalResultsSelect" class="form-label small text-muted mb-1">Qtd. por Página</label>
+                            <select id="externalResultsSelect" class="form-select form-select-sm">
+                                <option value="4">4 candidatos</option>
+                                <option value="6" selected>6 candidatos</option>
+                                <option value="8">8 candidatos</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- CARDS DE FILTRO POR CARGO -->
+                    <div class="row g-2 mb-3 text-center" id="cargoFilterContainer">
+                        <div class="col-4">
+                            <div class="card p-2 border cargo-filter-card" role="button" data-cargo="Engenheiro Junior" style="cursor: pointer; transition: all 0.2s;">
+                                <div class="fw-semibold small">Eng. Júnior</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="card p-2 border cargo-filter-card" role="button" data-cargo="Engenheiro Pleno" style="cursor: pointer; transition: all 0.2s;">
+                                <div class="fw-semibold small">Eng. Pleno</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="card p-2 border cargo-filter-card" role="button" data-cargo="Engenheiro Senior" style="cursor: pointer; transition: all 0.2s;">
+                                <div class="fw-semibold small">Eng. Sênior</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="externalEngineersList" class="list-group mb-3"></div>
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <button id="btnPrevExternalPage" class="btn btn-sm btn-outline-secondary" disabled>&larr; Anterior</button>
+                        <span id="externalPageIndicator" class="small text-muted font-monospace">Página 1</span>
+                        <button id="btnNextExternalPage" class="btn btn-sm btn-outline-secondary">Próxima &rarr;</button>
+                    </div>
                 </div>
             </div>
         </div>

@@ -1,6 +1,9 @@
 const API_URL = 'http://127.0.0.1:5000';
 let debounceTimer; // Variável para controlar o timer do debounce
-
+let currentExternalPage = 1;
+let allExternalCandidatos = [];
+let selectedCargoFilter = null;
+const DEFAULT_AVATAR = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiIgZmlsbD0iIzZjNzU3ZCIgY2xhc3M9ImJpIGJpLXBlcnNvbi1jaXJjbGUiIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZD0iTTExIDZhMyAzIDAgMSAxLTYgMCAzIDMgMCAwIDEgNiAweiIvPjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgZD0iTTAgOGE4IDggMCAxIDEgMTYgMEE4IDggMCAwIDEgMCA4em04LTdhNyA3IDAgMCAwLTUuNDY4IDExLjM3QzMuMjQyIDExLjIyNiA0LjgwNSAxMCA4IDEwczQuNzU3IDEuMjI1IDUuNDY4IDIuMzdBNyA3IDAgMCAwIDggMXoiLz48L3N2Zz4=';
 /*
   ======================================================================================
   CONTROLE DE NAVEGAÇÃO DA SPA (SINGLE PAGE APPLICATION)
@@ -466,10 +469,15 @@ const renderColaboradores = (colaboradores) => {
             return `<span class="badge ${badges[atribuicao] || 'bg-secondary'}">${atribuicao}</span>`;
         })(colab.atribuicao);
 
+        const fotoUrl = colab.foto || DEFAULT_AVATAR;
+
         item.innerHTML = `
-            <div>
-                <h6 class="mb-0">${colab.nome}</h6>
-                <small class="text-muted">${colab.cargo} - ${colab.disciplina}</small>
+            <div class="d-flex align-items-center">
+                <img src="${fotoUrl}" alt="${colab.nome}" class="rounded-circle me-3 border flex-shrink-0" width="48" height="48" style="width: 48px; height: 48px; object-fit: cover;" onerror="this.onerror=null;this.src=DEFAULT_AVATAR">
+                <div>
+                    <h6 class="mb-0">${colab.nome}</h6>
+                    <small class="text-muted">${colab.cargo} - ${colab.disciplina}</small>
+                </div>
             </div>
             <div>
                 ${atribuicaoBadge}
@@ -517,6 +525,8 @@ const openColaboradorModal = (colaborador = null) => {
     const modalLabel = document.getElementById('colaboradorModalLabel');
     const submitButton = document.getElementById('colaboradorSubmitButton');
     const originalNameInput = document.getElementById('colaboradorOriginalName');
+    const photoInput = document.getElementById('engineerPhoto');
+    const photoPreview = document.getElementById('engineerPhotoPreview');
 
     form.reset();
 
@@ -528,10 +538,15 @@ const openColaboradorModal = (colaborador = null) => {
         form.engineerRole.value = colaborador.cargo;
         form.engineerDiscipline.value = colaborador.disciplina;
         form.engineerPlatformRole.value = colaborador.atribuicao;
+        const fotoSalva = colaborador.foto || DEFAULT_AVATAR;
+        if (photoInput) photoInput.value = colaborador.foto || '';
+        if (photoPreview) photoPreview.src = fotoSalva;
     } else { // Modo Adição
         modalLabel.textContent = 'Cadastrar Novo Engenheiro';
         submitButton.textContent = 'Cadastrar Engenheiro';
         originalNameInput.value = '';
+        if (photoInput) photoInput.value = '';
+        if (photoPreview) photoPreview.src = DEFAULT_AVATAR;
     }
 };
 
@@ -543,12 +558,14 @@ const handleColaboradorSubmit = async (event) => {
     const form = event.target;
     const originalName = document.getElementById('colaboradorOriginalName').value;
     const isEditMode = !!originalName;
+    const photoVal = document.getElementById('engineerPhoto')?.value?.trim() || null;
 
     const body = {
         nome: form.engineerName.value,
         cargo: form.engineerRole.value,
         disciplina: form.engineerDiscipline.value,
-        atribuicao: form.engineerPlatformRole.value
+        atribuicao: form.engineerPlatformRole.value,
+        foto: photoVal
     };
 
     const url = isEditMode ? `${API_URL}/colaborador?nome=${encodeURIComponent(originalName)}` : `${API_URL}/colaborador`;
@@ -558,6 +575,7 @@ const handleColaboradorSubmit = async (event) => {
         const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
         if (response.ok) {
+
             alert(`Colaborador ${isEditMode ? 'atualizado' : 'adicionado'} com sucesso!`);
             const modalEl = document.getElementById('colaboradorModal');
             const modal = bootstrap.Modal.getInstance(modalEl);
@@ -578,6 +596,142 @@ const handleColaboradorSubmit = async (event) => {
     }
 };
 
+/**
+ * Busca candidatos de engenheiros através do endpoint que consome a API RandomUser.
+ */
+const fetchEngenheirosExternos = async () => {
+    const modalContainer = document.getElementById('externalEngineersList');
+    if (modalContainer) {
+        modalContainer.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Buscando na API RandomUser...</p></div>';
+    }
+
+    try {
+        const nat = document.getElementById('externalNatSelect')?.value || 'br';
+        // Busca um lote fixo de 24 candidatos na abertura do modal
+        const response = await fetch(`${API_URL}/colaboradores/externos?page=1&results=24&nat=${nat}`);
+        if (!response.ok) throw new Error("Erro ao consultar serviço externo.");
+        const { candidatos } = await response.json();
+        allExternalCandidatos = candidatos || [];
+        currentExternalPage = 1;
+        updatePaginationAndRender();
+    } catch (error) {
+        console.error('Erro ao buscar engenheiros externos:', error);
+        if (modalContainer) {
+            modalContainer.innerHTML = '<p class="text-danger p-3">Não foi possível carregar os engenheiros externos.</p>';
+        }
+    }
+};
+
+/**
+ * Filtra e pagina os candidatos em memória, sem novas chamadas à API.
+ */
+const updatePaginationAndRender = () => {
+    let filtrados = allExternalCandidatos;
+    if (selectedCargoFilter) {
+        filtrados = allExternalCandidatos.filter(c => c.cargo === selectedCargoFilter);
+    }
+
+    const pageSize = parseInt(document.getElementById('externalResultsSelect')?.value) || 6;
+    const totalPages = Math.ceil(filtrados.length / pageSize) || 1;
+
+    if (currentExternalPage > totalPages) currentExternalPage = totalPages;
+    if (currentExternalPage < 1) currentExternalPage = 1;
+
+    const startIndex = (currentExternalPage - 1) * pageSize;
+    const pageItems = filtrados.slice(startIndex, startIndex + pageSize);
+
+    renderCandidatosExternos(pageItems);
+
+    const btnPrev = document.getElementById('btnPrevExternalPage');
+    const btnNext = document.getElementById('btnNextExternalPage');
+    const indicator = document.getElementById('externalPageIndicator');
+    if (btnPrev) btnPrev.disabled = currentExternalPage <= 1;
+    if (btnNext) btnNext.disabled = currentExternalPage >= totalPages;
+    if (indicator) indicator.textContent = `Página ${currentExternalPage} de ${totalPages}`;
+};
+
+/**
+ * Atualiza o destaque visual dos cards de filtro por cargo.
+ */
+const updateCargoFilterUI = () => {
+    document.querySelectorAll('.cargo-filter-card').forEach(card => {
+        const cargo = card.getAttribute('data-cargo');
+        if (selectedCargoFilter === cargo) {
+            card.classList.add('border-primary', 'bg-primary', 'text-white', 'shadow-sm');
+            card.classList.remove('border');
+        } else {
+            card.classList.remove('border-primary', 'bg-primary', 'text-white', 'shadow-sm');
+            card.classList.add('border');
+        }
+    });
+};
+
+/**
+ * Renderiza os candidatos obtidos da API externa no modal.
+ * @param {Array<object>} candidatos
+ */
+const renderCandidatosExternos = (candidatos) => {
+    const list = document.getElementById('externalEngineersList');
+    if (!list) return;
+
+    list.innerHTML = '';
+    if (candidatos.length === 0) {
+        list.innerHTML = '<div class="text-center text-muted py-4"><p class="mb-0">Nenhum engenheiro encontrado com este cargo nesta página.</p><small>Clique no card novamente para limpar o filtro ou mude de página.</small></div>';
+        return;
+    }
+
+    candidatos.forEach(candidato => {
+        const item = document.createElement('div');
+        item.className = 'list-group-item d-flex justify-content-between align-items-center';
+        item.innerHTML = `
+            <div class="d-flex align-items-center">
+                <img src="${candidato.foto}" alt="${candidato.nome}" class="rounded-circle me-3 border flex-shrink-0" width="48" height="48" style="width: 48px; height: 48px; object-fit: cover;">
+                <div>
+                    <h6 class="mb-0">${candidato.nome}</h6>
+                    <small class="text-muted">${candidato.cargo} - ${candidato.disciplina} | <span class="badge bg-light text-dark border">${candidato.atribuicao}</span></small>
+                </div>
+            </div>
+            <button class="btn btn-sm btn-outline-success btn-select-candidate">
+                Selecionar
+            </button>
+        `;
+        const selectBtn = item.querySelector('.btn-select-candidate');
+        selectBtn.addEventListener('click', () => selecionarCandidatoExterno(candidato));
+        list.appendChild(item);
+    });
+};
+
+/**
+ * Seleciona um candidato externo, fecha o modal de busca e abre o formulário de cadastro pré-preenchido.
+ * @param {object} candidato
+ */
+const selecionarCandidatoExterno = (candidato) => {
+    const externalModalEl = document.getElementById('externalEngineersModal');
+    const externalModal = bootstrap.Modal.getInstance(externalModalEl) || new bootstrap.Modal(externalModalEl);
+    externalModal.hide();
+
+    // Inicializa o modal em modo de criação (garante originalName vazio -> requisição POST)
+    openColaboradorModal();
+
+    const form = document.getElementById('colaborador-form');
+    if (form) {
+        form.engineerName.value = candidato.nome || '';
+        form.engineerRole.value = candidato.cargo || '';
+        form.engineerDiscipline.value = candidato.disciplina || '';
+        form.engineerPlatformRole.value = candidato.atribuicao || 'Elaborador';
+    }
+
+    if (candidato.foto) {
+        const photoInput = document.getElementById('engineerPhoto');
+        const photoPreview = document.getElementById('engineerPhotoPreview');
+        if (photoInput) photoInput.value = candidato.foto;
+        if (photoPreview) photoPreview.src = candidato.foto;
+    }
+
+    const modalColabEl = document.getElementById('colaboradorModal');
+    const modalColab = bootstrap.Modal.getInstance(modalColabEl) || new bootstrap.Modal(modalColabEl);
+    modalColab.show();
+};
 
 /*
   ======================================================================================
@@ -589,7 +743,62 @@ document.addEventListener('DOMContentLoaded', () => {
     showView('dashboard-view', 'Dashboard Principal');
 
     // Adiciona listeners aos botões de "Adicionar" para abrir os modais em modo de criação
-    document.querySelector('button[data-bs-target="#projectModal"]').addEventListener('click', () => openProjectModal());
+    const btnAddProject = document.querySelector('button[data-bs-target="#projectModal"]');
+    if (btnAddProject) btnAddProject.addEventListener('click', () => openProjectModal());
+
+    const btnBuscarExternos = document.getElementById('btn-buscar-externos');
+    if (btnBuscarExternos) {
+        btnBuscarExternos.addEventListener('click', () => {
+            currentExternalPage = 1;
+            selectedCargoFilter = null;
+            updateCargoFilterUI();
+            fetchEngenheirosExternos();
+            const modal = new bootstrap.Modal(document.getElementById('externalEngineersModal'));
+            modal.show();
+        });
+    }
+
+    // Listeners para os cards de filtro por cargo
+    document.querySelectorAll('.cargo-filter-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const cargo = card.getAttribute('data-cargo');
+            // Se já estava selecionado, desmarca (mostra todos); caso contrário, seleciona o novo
+            if (selectedCargoFilter === cargo) {
+                selectedCargoFilter = null;
+            } else {
+                selectedCargoFilter = cargo;
+            }
+            updateCargoFilterUI();
+            currentExternalPage = 1;
+            updatePaginationAndRender();
+        });
+    });
+
+    // Listeners de paginação e filtros do modal externo
+    const btnPrevExternal = document.getElementById('btnPrevExternalPage');
+    if (btnPrevExternal) {
+        btnPrevExternal.addEventListener('click', () => {
+            if (currentExternalPage > 1) {
+                currentExternalPage--;
+                updatePaginationAndRender();
+            }
+        });
+    }
+
+    const btnNextExternal = document.getElementById('btnNextExternalPage');
+    if (btnNextExternal) {
+        btnNextExternal.addEventListener('click', () => {
+            currentExternalPage++;
+            updatePaginationAndRender();
+        });
+    }
+
+    const natSelect = document.getElementById('externalNatSelect');
+    if (natSelect) natSelect.addEventListener('change', () => { currentExternalPage = 1; fetchEngenheirosExternos(); });
+
+    const resultsSelect = document.getElementById('externalResultsSelect');
+    if (resultsSelect) resultsSelect.addEventListener('change', () => { currentExternalPage = 1; updatePaginationAndRender(); });
+
     document.querySelector('button[data-bs-target="#colaboradorModal"]').addEventListener('click', () => openColaboradorModal());
 
     // Adiciona listeners aos formulários
