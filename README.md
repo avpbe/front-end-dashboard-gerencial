@@ -12,6 +12,7 @@ Esta é uma SPA (Single Page Application) desenvolvida para consumir a API de ge
 - **Gerenciamento de Equipe**:
   - Visualização da lista de colaboradores cadastrados.
   - Adição, edição (via modal) e remoção de membros da equipe.
+  - Busca de engenheiros externos (integração com a API RandomUser) com filtros por nacionalidade e nível de cargo, suporte a paginação e pré-preenchimento automático dos dados e foto no formulário de cadastro.
 - **Cronograma de Projetos**:
   - Visualização em formato de gráfico de Gantt da alocação dos projetos.
   
